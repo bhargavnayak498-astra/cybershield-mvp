@@ -1,0 +1,144 @@
+# README.md
+# CyberShield MVP
+
+CyberShield MVP is a submission-ready phishing URL detector demo built with a FastAPI backend, React + TypeScript frontend, and MongoDB persistence. It focuses on deterministic URL heuristics, optional ML inference when a model artifact exists, and a clean demonstration workflow for university submissions and evaluator demos.
+
+Important scope note:
+- This is an MVP, not a production security product.
+- Live WHOIS/DNS/SSL checks, browser extension integration, and automatic retraining are explicitly future work.
+- All scoring is advisory only; the system must not claim a URL is safe with certainty.
+
+## Features
+- URL normalization and validation
+- Malformed URL and unsupported scheme rejection
+- HTTPS vs HTTP signals
+- Raw IP host detection
+- Suspicious subdomain and URL length detection
+- Encoded-character, special-symbol, and redirect-pattern heuristics
+- Brand-like typo detection using a small configured list
+- Suspicious TLD detection and IDN/punycode warnings
+- Weighted heuristic score from 0 to 100
+- Verdicts: Safe, Suspicious, or Phishing
+- Human-readable reasoning for each score
+- Optional bundled Random Forest artifact support when provided
+- MongoDB-backed scan history
+- Responsive React dashboard with result card and history
+- Demo URLs for predictable evaluation
+- Basic health endpoint and error handling
+
+## Architecture
+
+- Frontend: React + TypeScript + Vite
+- Backend: FastAPI + Python
+- Database: MongoDB
+- Container orchestration: Docker Compose
+
+## Local run
+
+### Prerequisites
+- Docker Desktop or Docker Engine
+- Docker Compose
+- Node.js 20+
+- Python 3.11+
+
+### Start everything
+
+```bash
+docker compose up --build
+```
+
+Then open:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000/docs
+- MongoDB: localhost:27017
+
+### Optional manual backend run
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Optional manual frontend run
+
+```bash
+cd frontend
+npm install
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+## API
+
+### POST /api/scans
+Request body:
+
+```json
+{
+  "url": "https://www.google.com/"
+}
+```
+
+Response includes:
+- `id`
+- `score`
+- `verdict`
+- `reasons`
+- `normalized_url`
+- `redacted_url`
+- `hash`
+- `timestamp`
+- `model_status`
+
+### GET /api/scans
+Returns paginated scan history.
+
+### GET /api/scans/{id}
+Returns one stored result.
+
+### GET /api/health
+Returns service health and database connectivity.
+
+### Optional POST /api/feedback
+Stores simple feedback labels such as false positive or false negative.
+
+## Demo URLs
+The app includes seeded examples:
+- `https://www.google.com/` — benign example
+- `https://secure-login-microsoft.com/` — suspicious example
+- `http://192.168.0.5/login?next=https://evil.example/` — phishing-like example
+- `javascript:alert(1)` — malformed/unsupported scheme example
+
+## Security and design boundaries
+- No remote content is fetched or rendered.
+- No JavaScript is executed from submitted URLs.
+- URLs are never rendered as HTML.
+- Query strings are treated as sensitive and redacted in display output.
+- Unsupported schemes such as `javascript:`, `data:`, `file:`, and `ftp:` are rejected.
+- The app uses safe failure behavior and does not claim detection certainty.
+- External WHOIS/DNS/SSL checks are left as future work.
+
+## Model handling
+The system checks for a local model artifact, but it does not fabricate a model if one is unavailable. If a compatible model is present, it is loaded and reported in the response; otherwise the backend clearly states that the heuristic engine is active and the ML layer is currently unavailable.
+
+## Future work
+- Browser extension integration
+- Live intelligence feeds
+- Distributed or institutional deployment
+- Automatic model retraining and registry
+- Role-based administration and MFA
+- HTML and page-content analysis or sandboxing
+- Multilingual homograph detection beyond basic IDN handling
+
+## Limitations
+This MVP is intentionally conservative and focuses on demonstrable behaviors. It is designed for local evaluation, not real-world phishing defense or guaranteed protection.
+
+## Testing
+A small Python test suite checks malformed URL handling, unsupported schemes, long URLs, and IDN/IP patterns.
+
+```bash
+cd backend
+pytest
+```
